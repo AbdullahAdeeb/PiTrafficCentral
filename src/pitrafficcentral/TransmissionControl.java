@@ -9,17 +9,19 @@ import java.net.UnknownHostException;
 
 public class TransmissionControl 
 {
-	InetAddress IPAddressH;
+        //declare global variables
+        InetAddress IPAddressH;
 	InetAddress IPAddressV;
 	byte[] sendData = new byte[2];
 	DatagramSocket socket;
-	DatagramPacket sendPacketH;// = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+	DatagramPacket sendPacketH;
 	DatagramPacket sendPacketV;
 	public TransmissionControl()
 	{
 		
 		try 
 		{
+                        //set IP addresses
 			IPAddressH = InetAddress.getByName("10.0.0.42");
 			IPAddressV = InetAddress.getByName("10.0.0.44");
 		}
@@ -27,11 +29,13 @@ public class TransmissionControl
 		{
 			e.printStackTrace();
 		}
+                //initialize datagram packets
 		sendPacketH = new DatagramPacket(sendData, sendData.length,IPAddressH,5005);
 		sendPacketV = new DatagramPacket(sendData, sendData.length,IPAddressV,5005);
 		
 		try 
-		{
+		{   
+                        //initialize the sending socket on a random port
 			socket = new DatagramSocket();
 		} 
 		catch (SocketException e) 
@@ -41,6 +45,8 @@ public class TransmissionControl
 	}
 	public synchronized void sendH(byte[] data)
 	{
+                //send to the east-west lights
+                //set datagram packet to send data
 		sendPacketH = new DatagramPacket(data, data.length,IPAddressH,5005);
 		try
 		{
@@ -54,6 +60,8 @@ public class TransmissionControl
 	}
 	public synchronized void sendV(byte[] data)
 	{
+                //send to the north-south lights
+                //set datagram packet to send data
 		sendPacketV = new DatagramPacket(data, data.length,IPAddressV,5005);
 		try
 		{

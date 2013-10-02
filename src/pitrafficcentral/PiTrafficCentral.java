@@ -6,203 +6,250 @@ import java.awt.event.ActionListener;
 
 import javax.swing.Timer;
 
+/**
+ * This is the main class for the traffic central This will start the gui and
+ * handles the timers for the traffic
+ *
+ * @author lenovo212
+ */
 public class PiTrafficCentral {
-	static TrafficCentralGUI trafficControlGUI;
-	static UdpControl udpC;
-	static TransmissionControl udpSender;
 
-	private static final int GREEN_DELAY = 7000;
-	private static final int YELLOW_DELAY = 3000;
-	private static final int GRACE_DELAY = 1000;
-	private static final int PEDS_DELAY = 1500;
+    static TrafficCentralGUI trafficControlGUI;
+    static UdpControl udpC;
+    static TransmissionControl udpSender;
+    private static final int GREEN_DELAY = 7000;
+    private static final int YELLOW_DELAY = 3000;
+    private static final int GRACE_DELAY = 1000;
+    private static final int PEDS_DELAY = 1500;
+    private static boolean isOn = false;
+    private static Timer pedsTimer;
+    private static Timer yellowTimer;
+    private static Timer greenTimer;
+    private static Timer graceTimer;
+    private static int pedsCode;
+    private static boolean isVerticleGreen;
+    static byte[] greenTransmission = new byte[1];
+    static byte[] yellowTransmission = new byte[1];
+    static byte[] redTransmission = new byte[1];
 
-	private static boolean isOn = false;
+    /**
+     * Init. the timers and the gui
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        udpSender = new TransmissionControl();
+        PiTrafficCentral.greenTransmission[0] = 49;
+        PiTrafficCentral.yellowTransmission[0] = 50;
+        PiTrafficCentral.redTransmission[0] = 51;
 
-	private static Timer pedsTimer;
-	private static Timer yellowTimer;
-	private static Timer greenTimer;
-	private static Timer graceTimer;
+        pedsTimer = new Timer(PEDS_DELAY, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent arg0) {
+                if (yellowTimer.isRunning() || graceTimer.isRunning() || !isOn) {
+                    pedsTimer.stop();
+                    return;
+                }
+                if (isVerticleGreen && pedsCode == 2) {
+                    greenTimer.stop();
+                    setVYellow();
+                    yellowTimer.start();
+                } else if (!isVerticleGreen && pedsCode == 1) {
+                    greenTimer.stop();
+                    setHYellow();
+                    yellowTimer.start();
+                }else{
+                    System.out.println("Ignoring pedestrain input");
+                }
 
-	private static int pedsCode;
-	private static boolean isVerticleGreen;
+                pedsTimer.stop();
 
-	static byte[] greenTransmission = new byte[1];
-	static byte[] yellowTransmission = new byte[1];
-	static byte[] redTransmission = new byte[1];
+            }
+        });
 
-	public static void main(String[] args) {
-		udpSender = new TransmissionControl();
-		PiTrafficCentral.greenTransmission[0] = 49;
-		PiTrafficCentral.yellowTransmission[0] = 50;
-		PiTrafficCentral.redTransmission[0] = 51;
+        yellowTimer = new Timer(YELLOW_DELAY, new ActionListener() {
+            public void actionPerformed(ActionEvent ae) {
+                if (!isOn) {
+                    return;
+                }
+                if (isVerticleGreen) {
+                    setVRed();
+                } else {
+                    setHRed();
+                }
+                yellowTimer.stop();
+                graceTimer.start();
+            }
+        });
+        graceTimer = new Timer(GRACE_DELAY, new ActionListener() {
+            public void actionPerformed(ActionEvent ae) {
+                
+                if (isVerticleGreen) {
+                    setHGreen();
+                    isVerticleGreen = false;
+                } else {
+                    setVGreen();
+                    isVerticleGreen = true;
+                }
 
-		pedsTimer = new Timer(PEDS_DELAY, new ActionListener() {
+                graceTimer.stop();
+                greenTimer.start();
+            }
+        });
 
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				if (yellowTimer.isRunning() || graceTimer.isRunning()) {
-					pedsTimer.stop();
-					return;
-				}
-				if (isVerticleGreen && pedsCode == 2) {
-					greenTimer.stop();
-					setVYellow();
-					yellowTimer.start();
-				} else if (!isVerticleGreen && pedsCode == 1) {
-					greenTimer.stop();
-					setHYellow();
-					yellowTimer.start();
-				}
+        greenTimer = new Timer(GREEN_DELAY, new ActionListener() {
+            public void actionPerformed(ActionEvent ae) {
+                if (!isOn) {
+                    return;
+                }
+                if (isVerticleGreen) {
+                    setVYellow();
+                } else {
+                    setHYellow();
+                }
+                yellowTimer.start();
+                greenTimer.stop();
+                pedsTimer.stop();
+            }
+        });
 
-				pedsTimer.stop();
+        startGUI();
 
-			}
-		});
+    }
 
-		yellowTimer = new Timer(YELLOW_DELAY, new ActionListener() {
-			public void actionPerformed(ActionEvent ae) {
-				if (isVerticleGreen)
-					setVRed();
+        /**
+     * starts the traffic central gui
+     */
+    private static void startGUI() {
+        EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                udpC = new UdpControl();
 
-				else {
-					setHRed();
-				}
-				yellowTimer.stop();
-				graceTimer.start();
-			}
-		});
-		graceTimer = new Timer(GRACE_DELAY, new ActionListener() {
-			public void actionPerformed(ActionEvent ae) {
-				if (isVerticleGreen) {
-					setHGreen();
-					isVerticleGreen = false;
-				} else {
-					setVGreen();
-					isVerticleGreen = true;
-				}
+                trafficControlGUI = new TrafficCentralGUI();
+                trafficControlGUI.setVisible(true);
 
-				graceTimer.stop();
-				greenTimer.start();
-			}
-		});
+                setVGreen();
+                setHRed();
+                isVerticleGreen = true;
 
-		greenTimer = new Timer(GREEN_DELAY, new ActionListener() {
-			public void actionPerformed(ActionEvent ae) {
-				if (isVerticleGreen)
-					setVYellow();
-				else {
-					setHYellow();
-				}
-				yellowTimer.start();
-				greenTimer.stop();
-				pedsTimer.stop();
-			}
-		});
+            }
+        });
 
-		startGUI();
+    }
 
-	}
+    /**
+     * called when data is relieved through UDP
+     * @param str
+     */
+    protected static void rcvData(String str) {
+        // str = 1 >> vertical
+        pedsCode = Integer.parseInt(str);
+        pedsTimer.start();
+    }
 
-	private static void startGUI() {
-		EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				udpC = new UdpControl();
+       /**
+     * Called to change the south-north light to green
+     * 
+     */
+    private static void setVGreen() {
+        System.out.println("red >> green");
 
-				trafficControlGUI = new TrafficCentralGUI();
-				trafficControlGUI.setVisible(true);
+        trafficControlGUI.setGreen(trafficControlGUI.getTrafficTop());
+        trafficControlGUI.setGreen(trafficControlGUI.getTrafficBottom());
+        isVerticleGreen = true;
+        udpSender.sendV(greenTransmission);
+    }
 
-				setVGreen();
-				setHRed();
-				isVerticleGreen = true;
+           /**
+     * Called to change the south-north light to yellow
+     * 
+     */
+    private static void setVYellow() {
+        System.out.println("green >> yellow");
+        trafficControlGUI.setYellow(trafficControlGUI.getTrafficTop());
+        trafficControlGUI.setYellow(trafficControlGUI.getTrafficBottom());
+        udpSender.sendV(yellowTransmission);
+    }
 
-			}
-		});
+           /**
+     * Called to change the south-north light to red
+     * 
+     */
+    private static void setVRed() {
+        System.out.println("yellow >> red");
+        trafficControlGUI.setRed(trafficControlGUI.getTrafficTop());
+        trafficControlGUI.setRed(trafficControlGUI.getTrafficBottom());
+        udpSender.sendV(redTransmission);
+    }
 
-	}
+           /**
+     * Called to change the east-west light to green
+     * 
+     */
+    private static void setHGreen() {
+        System.out.println("red >> green");
 
-	public static void stopGreenTimer() {
+        trafficControlGUI.setGreen(trafficControlGUI.getTrafficRight());
+        trafficControlGUI.setGreen(trafficControlGUI.getTrafficLeft());
+        udpSender.sendH(greenTransmission);
+    }
 
-	}
+               /**
+     * Called to change the east-west light to yellow
+     * 
+     */
+    private static void setHYellow() {
+        System.out.println("green >> yellow");
+        trafficControlGUI.setYellow(trafficControlGUI.getTrafficRight());
+        trafficControlGUI.setYellow(trafficControlGUI.getTrafficLeft());
+        udpSender.sendH(yellowTransmission);
+    }
 
-	protected static void rcvData(String str) {
-		// str = 1 >> vertical
-		pedsCode = Integer.parseInt(str);
-		pedsTimer.start();
-	}
+               /**
+     * Called to change the east-west light to red
+     * 
+     */
+    private static void setHRed() {
+        System.out.println("yellow >> red");
+        trafficControlGUI.setRed(trafficControlGUI.getTrafficRight());
+        trafficControlGUI.setRed(trafficControlGUI.getTrafficLeft());
+        udpSender.sendH(redTransmission);
+    }
 
-	private static void setVGreen() {
-		System.out.println("red >> green");
+    /**
+     * return the running GUI
+     * @return
+     */
+    public static TrafficCentralGUI getTrafficControlGUI() {
+        return trafficControlGUI;
+    }
 
-		trafficControlGUI.setGreen(trafficControlGUI.getTrafficTop());
-		trafficControlGUI.setGreen(trafficControlGUI.getTrafficBottom());
-		isVerticleGreen = true;
-		udpSender.sendV(greenTransmission);
-	}
+    /**
+     * return the running UDP controller 
+     * @return
+     */
+    public static UdpControl getUdpC() {
+        return udpC;
+    }
 
-	private static void setVYellow() {
-		System.out.println("green >> yellow");
-		trafficControlGUI.setYellow(trafficControlGUI.getTrafficTop());
-		trafficControlGUI.setYellow(trafficControlGUI.getTrafficBottom());
-		udpSender.sendV(yellowTransmission);
-	}
+    /**
+     * stops the simulation
+     */
+    public static void stopSim() {
+        greenTimer.stop();
+        yellowTimer.stop();
+        
+        isOn = false;
 
-	private static void setVRed() {
-		System.out.println("yellow >> red");
-		trafficControlGUI.setRed(trafficControlGUI.getTrafficTop());
-		trafficControlGUI.setRed(trafficControlGUI.getTrafficBottom());
-		udpSender.sendV(redTransmission);
-	}
+    }
 
-	private static void setHGreen() {
-		System.out.println("red >> green");
-
-		trafficControlGUI.setGreen(trafficControlGUI.getTrafficRight());
-		trafficControlGUI.setGreen(trafficControlGUI.getTrafficLeft());
-		udpSender.sendH(greenTransmission);
-	}
-
-	private static void setHYellow() {
-		System.out.println("green >> yellow");
-		trafficControlGUI.setYellow(trafficControlGUI.getTrafficRight());
-		trafficControlGUI.setYellow(trafficControlGUI.getTrafficLeft());
-		udpSender.sendH(yellowTransmission);
-	}
-
-	private static void setHRed() {
-		System.out.println("yellow >> red");
-		trafficControlGUI.setRed(trafficControlGUI.getTrafficRight());
-		trafficControlGUI.setRed(trafficControlGUI.getTrafficLeft());
-		udpSender.sendH(redTransmission);
-	}
-
-	public static TrafficCentralGUI getTrafficControlGUI() {
-		return trafficControlGUI;
-	}
-
-	public static void setTrafficControlGUI(TrafficCentralGUI trafficControlGUI) {
-		PiTrafficCentral.trafficControlGUI = trafficControlGUI;
-	}
-
-	public static UdpControl getUdpC() {
-		return udpC;
-	}
-
-	public static void setUdpC(UdpControl udpC) {
-		PiTrafficCentral.udpC = udpC;
-	}
-
-	public static void stopSim() {
-		stopGreenTimer();
-		yellowTimer.stop();
-		isOn = false;
-
-	}
-
-	public static void startSim() {
-		if (!isOn) {
-			isOn = true;
-			greenTimer.start();
-		}
-	}
-
+    /**
+     * starts the simulation
+     */
+    public static void startSim() {
+        if (!isOn) {
+            isOn = true;
+            greenTimer.start();
+        }
+    }
 }

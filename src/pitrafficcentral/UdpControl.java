@@ -3,12 +3,20 @@ package pitrafficcentral;
 import java.io.*; 
 import java.net.*;
 
+/**
+ *
+ * @author lenovo212
+ * This class receive the incoming UDP connection on a separate thread
+ */
 public class UdpControl extends Thread
 {
 	DatagramSocket socket;
 	DatagramPacket receiveP;
 	
-	public UdpControl()
+	/**
+     *initialize the thread
+     */
+    public UdpControl()
 	{	
 		
 		byte[] temp = new byte[1];
@@ -25,7 +33,10 @@ public class UdpControl extends Thread
 		}
 		this.start();
 	}
-	public void receive()
+	/**
+     * constant check for incoming connections
+     */
+    public void receive()
 	{
 		
 		while(true)
